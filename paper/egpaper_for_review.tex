@@ -19,7 +19,7 @@
 
 % 全局排版优化
 \setstretch{1.15} 
-\setlength{\parskip}{0.6em} 
+\setlength{\parskip}{0.05em} 
 
 % 设置 Caption 间距：标题下方距离正文更远一点
 \captionsetup[table]{skip=5pt} 
@@ -35,7 +35,7 @@
 \maketitle
 
 \begin{abstract}
-This report investigates the performance of the Feed-forward Denoising Convolutional Neural Network (DnCNN) in image restoration. We conduct a comparative study against traditional optimization-based methods (ISTA, FISTA, ADMM) and the benchmark BM3D algorithm. Experimental results on the Set14 dataset demonstrate that DnCNN achieves the highest average PSNR (29.39 dB) and SSIM (0.8302), while significantly reducing inference time to 0.2779s per image. The results validate that deep learning-based residual learning captures image priors more effectively and efficiently than handcrafted iterative solvers. \\
+This report evaluates the Feed-forward Denoising Convolutional Neural Network (DnCNN) against traditional solvers (ISTA, FISTA, ADMM) and the BM3D benchmark. Experimental results on Set14 show that DnCNN achieves superior performance (29.39 dB PSNR, 0.8302 SSIM) and a faster inference time of 0.2779s. These findings demonstrate that deep residual learning captures image priors more effectively and efficiently than iterative, handcrafted methods. \\
 \textbf{Source Code:} \textcolor{magenta}{\url{https://github.com/lyk-Eureka/exp5.git}}
 \end{abstract}
 
@@ -47,13 +47,27 @@ Image denoising is a fundamental research area in computer vision. While traditi
 ISTA, FISTA, and ADMM treat denoising as a minimization problem of a cost function containing a fidelity term and a regularization term. The performance is highly dependent on the choice of the regularization parameter $\lambda$, which requires empirical adjustment for different datasets.
 
 \subsection{Deep Residual Learning (DnCNN)}
-DnCNN (Denoising Convolutional Neural Network) employs residual learning to explicitly predict the noise component $\mathcal{R}(y) \approx y - x$. By leveraging 17-20 layers of convolutions paired with Batch Normalization, the model learns to identify noise patterns across multiple scales, ensuring high-frequency details remain intact.
+DnCNN (Denoising Convolutional Neural Network) employs residual learning to explicitly predict the noise component $\mathcal{R}(y) \approx y - x$. 
+
+Specifically, for a noisy input $y = x + v$, the network $\mathcal{F}$ with parameters $\Theta$ is trained to learn the mapping:
+\begin{equation}
+\hat{v} = \mathcal{F}(y; \Theta) \approx v
+\end{equation}
+The latent clean image is then reconstructed by subtracting the predicted noise from the observation:
+\begin{equation}
+\hat{x} = y - \mathcal{F}(y; \Theta)
+\end{equation}
+The optimization objective is the Mean Squared Error (MSE) between the estimated residual and the ground-truth noise:
+\begin{equation}
+\mathcal{L}(\Theta) = \frac{1}{2N} \sum_{i=1}^{N} \| \mathcal{F}(y_i; \Theta) - (y_i - x_i) \|_F^2
+\end{equation}
+By leveraging 17-20 layers of convolutions paired with Batch Normalization (BN), each layer follows the operation $\sigma(BN(W * O + b))$, ensuring high-frequency details remain intact while accelerating convergence.
 
 \section{Experimental Results}
 
 \subsection{Quantitative Evaluation and Table Analysis}
 
-\begin{table}[H]
+\begin{table}[!ht] % 修改此处：由 [H] 改为 [!ht]
 \centering
 \begin{tabular}{lccc}
 \toprule
@@ -68,22 +82,22 @@ ADMM   & 20.37 & 0.4560 & 0.3120 \\
 \end{table}
 
 \noindent \justifying
-The data in Table 1 presents a compelling case for the transition from optimization-based to learning-based denoising. DnCNN achieves a PSNR of 29.39 dB, surpassing the highly regarded BM3D by 0.26 dB and outperforming ADMM by an extraordinary margin of over 40\% in relative fidelity. The SSIM score of 0.8302 indicates that DnCNN preserves structural integrity far better than iterative methods, which often introduce blurring. Furthermore, DnCNN is the most efficient algorithm, cutting execution time by nearly 50\% compared to BM3D. This efficiency stems from the model's ability to process images in a single GPU-accelerated forward pass, eliminating the need for the hundreds of iterations required by ISTA or FISTA.
+Table 1 shows the superiority of learning-based denoising over optimization methods. DnCNN achieves a PSNR of 29.39 dB, surpassing BM3D by 0.26 dB and significantly outperforming ADMM. Its 0.8302 SSIM indicates better structure preservation than iterative methods. Furthermore, DnCNN is the most efficient, nearly halving BM3D's execution time via a single GPU-accelerated forward pass that eliminates the hundreds of iterations required by ISTA or FISTA. 
 
 \subsection{Visual Comparison}
 
-\begin{figure}[H]
+\begin{figure}[!ht] % 修改此处：由 [H] 改为 [!ht]
     \centering
     \includegraphics[width=\linewidth]{Comparison.pdf}
     \caption{Visual comparison of denoising results.}
     \vspace{1.0em}
     \noindent \justifying
-    {The visual results in Figure 1 highlight the distinct advantages of the residual learning paradigm. Traditional solvers like ADMM tend to produce "staircase artifacts" in smooth gradients due to the nature of the Total Variation prior. In contrast, DnCNN produces a clean, natural texture that is virtually indistinguishable from the ground truth. It effectively differentiates between additive white Gaussian noise and actual high-frequency image features such as edges and fine lines, whereas proximal gradient methods (ISTA/FISTA) often treat these features as noise, resulting in a loss of sharpness.}
+    {Figure 1 highlights the advantages of residual learning. Unlike ADMM, which often produces "staircase artifacts," DnCNN generates natural textures nearly indistinguishable from the ground truth. By effectively distinguishing noise from high-frequency features, DnCNN preserves sharp edges that are typically blurred by iterative methods like ISTA or FISTA. }
 \end{figure}
 
 \subsection{Performance Metrics and Efficiency}
 
-\begin{figure}[H]
+\begin{figure}[H] % 修改此处：由 [H] 改为 [!ht]
     \centering
     \includegraphics[width=0.92\linewidth]{Average_Metrics_Comparison.png}
     \caption{Average PSNR and SSIM comparison.}
@@ -92,7 +106,7 @@ The data in Table 1 presents a compelling case for the transition from optimizat
     {Figure 2 illustrates the distribution of metrics across the Set14 dataset. DnCNN's consistent performance across all images underscores its robust generalization capability. Unlike optimization methods that may fail on specific textures, the learned priors in DnCNN are versatile. The bar chart vividly shows that while iterative methods struggle to break the 24 dB barrier for many samples, DnCNN remains stable near 29 dB, showcasing its reliability in professional image restoration pipelines.}
 \end{figure}
 
-\begin{figure}[H]
+\begin{figure}[H] % 修改此处：由 [H] 改为 [!ht]
     \centering
     \includegraphics[width=0.92\linewidth]{Average_Time_Comparison.png}
     \caption{Average computation time per algorithm.}
